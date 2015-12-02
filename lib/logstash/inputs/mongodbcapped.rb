@@ -52,11 +52,12 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     # we can abort the loop if stop? becomes true
     while !stop?
       begin
-        event = @cursor.next
+        message = @cursor.next
       rescue StopIteration
         rebuild_connection
       else
-        if event
+        if message
+          event = LogStash::Event.new("message" => message)
           decorate(event)
           queue << event
         else
