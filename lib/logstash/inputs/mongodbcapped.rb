@@ -61,6 +61,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
         rebuild_connection
       else
         if message
+          message = convert_bson_hash_to_raw(message)
           event = LogStash::Event.new("message" => message)
           decorate(event)
           queue << event
@@ -69,6 +70,21 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
         end
       end
     end
+  end
+
+  def convert_bson_hash_to_raw(hash)
+    result = {}
+    hash.each do |key, value|
+      case value
+      when BSON::Binary, BSON::Code, BSON::CodeWithScope, BSON::MaxKey, BSON::MinKey, BSON::ObjectId, BSON::Timestamp, Regexp
+        result[key] = value.as_json
+      when Hash
+        result[key] = convert_bson_hash_to_raw(value)
+      else
+        result[key] = value
+      end
+    end
+    return result
   end
 
   def stop
