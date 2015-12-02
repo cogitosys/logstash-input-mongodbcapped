@@ -62,7 +62,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
       else
         if message
           message = convert_bson_hash_to_raw(message)
-          event = LogStash::Event.new("message" => message)
+          event = LogStash::Event.new("message" => message, collection: @collection)
           decorate(event)
           queue << event
         else
