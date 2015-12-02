@@ -1,7 +1,6 @@
 # encoding: utf-8
 require "logstash/inputs/base"
 require "logstash/namespace"
-require "socket"
 
 # Read messages from a mongodb capped collection using a tailable cursor
 class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
@@ -48,7 +47,6 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   end
 
   def run(queue)
-    host = Socket.gethostname
     @cursor.start
 
     # we can abort the loop if stop? becomes true
@@ -59,7 +57,6 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
         rebuild_connection
       else
         if event
-          event["host"] ||= host
           decorate(event)
           queue << event
         else
