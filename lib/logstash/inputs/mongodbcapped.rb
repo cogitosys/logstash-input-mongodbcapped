@@ -38,7 +38,10 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   end
 
   def rebuild_connection
-    @mongo = Mongo::Client.new(@uri)
+    # I'd hook it up to Cabin, but Cabin doesn't support the proper api (block-style)
+    mongo_logger = Logger.new($stdout)
+    mongo_logger.level = Logger::WARN
+    @mongo = Mongo::Client.new(@uri, logger: mongo_logger)
     @coll = @mongo[@collection]
     raise "Collection must be capped to connect to it" unless @coll.capped?
 
@@ -54,6 +57,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
       begin
         message = @cursor.next
       rescue StopIteration
+        @logger.info("MongoDB tailable cursor broken", uri: @uri, collection: @collection)
         rebuild_connection
       else
         if message
