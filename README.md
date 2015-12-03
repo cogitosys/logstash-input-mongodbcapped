@@ -26,6 +26,16 @@ Logstash provides infrastructure to automatically generate documentation for thi
 
 No attempt is made to handle broken connections. If your mongo goes down while running this plugin, it may well crash logstash. Logstash in general is not a robust system, so that's not a big worry.
 
+## Roadmap
+
+Here's my shortlist of things I'd like to add eventually:
+
+- [ ] polling input -> useful for scraping systemStats(), db.stats(), etc
+- [ ] start_from support -> to skip over existing messages in a capped collection
+- [ ] collection as a string or an array in config
+- [ ] wildcard support for collections
+- [ ] proper error recovery, retry timing and backoff (needs input from elastic team about philosophy)
+
 ## Need Help?
 
 Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/logstash discussion forum.
