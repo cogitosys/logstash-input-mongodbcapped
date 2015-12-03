@@ -9,8 +9,8 @@ It is fully free and fully open source. The license is Apache 2.0, meaning you a
 ```
 input {
     mongodbcapped {
-        uri => 'mongodb://localhost/somedb?ssl=true'
-        collection => 'my_capped_colleciton'
+        uri => "mongodb://localhost/somedb?ssl=true"
+        collections => ["my_capped_colleciton", "some_other_db/some_collection"]
     }
 }
 ```
@@ -21,6 +21,10 @@ Logstash provides infrastructure to automatically generate documentation for thi
 
 - For formatting code or config example, you can use the asciidoc `[source,ruby]` directive
 - For more asciidoc formatting tips, see the excellent reference here https://github.com/elastic/docs#asciidoc-guide
+
+## Known issues
+
+No attempt is made to handle broken connections. If your mongo goes down while running this plugin, it may well crash logstash. Logstash in general is not a robust system, so that's not a big worry.
 
 ## Need Help?
 
@@ -40,7 +44,7 @@ Either add the gem by path to the Gemfile, and `bin/plugin install --no-verify`,
 
 All contributions are welcome: ideas, patches, documentation, bug reports, complaints, and even something you drew up on a napkin.
 
-Programming is not a required skill. Whatever you've seen about open source and maintainers or community members  saying "send patches or die" - you will not see that here.
+Programming is not a required skill. Whatever you've seen about open source and maintainers or community members saying "send patches or die" - you will not see that here.
 
 It is more important to the community that you are able to contribute.
 
