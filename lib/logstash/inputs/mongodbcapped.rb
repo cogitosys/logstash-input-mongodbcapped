@@ -74,6 +74,9 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     while !stop?
       begin
         message = cursor.next
+      rescue Mongo::Error::OperationFailure => e
+        # this can happen if a query wasn't successful
+        retry
       rescue StopIteration
         @logger.info("MongoDB tailable cursor broken", uri: @server, database: database, collection: collection)
         cursor = rebuild_connection(database, collection)
