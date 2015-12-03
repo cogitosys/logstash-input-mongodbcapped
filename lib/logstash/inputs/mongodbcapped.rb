@@ -9,60 +9,80 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   # If undefined, Logstash will complain, even if codec is unused.
   default :codec, "plain"
 
-  # The mongo server and database to connect to
-  config :uri, validate: :string, required: true
+  # The mongo server to connect to (as a mongodb connection string)
+  config :server, validate: :string, required: false
 
-  # The collection to tail
-  config :collection, validate: :string, required: true
+  # The collections to tail
+  #
+  # To specify collections in different databases, write them in the form "database/collection"
+  config :collections, validate: :array, required: true
 
-  # how long to sleep if the cursor gives us no results, to reduce server load
+  # How long to sleep if the cursor gives us no results, to reduce server load
   config :interval, validate: :number, default: 0.5
 
-  # filter to apply to the cursor
-  config :filter, validate: :string, required: false, default: ""
+  # Whether or not to consider a missing collection a fatal error
+  config :raise_on_missing, validate: :boolean, default: true
 
-  public
   def register
     require "json"
     require "uri"
     require "mongo"
     require "mongo/tailable_cursor"
 
-    @parsed_filter = begin
-      JSON.parse(@filter)
-    rescue
-      {}
-    end
-    last_value = nil
-    rebuild_connection
-  end
-
-  def rebuild_connection
     # I'd hook it up to Cabin, but Cabin doesn't support the proper api (block-style)
     mongo_logger = Logger.new($stdout)
     mongo_logger.level = Logger::WARN
-    @mongo = Mongo::Client.new(@uri, logger: mongo_logger)
-    @coll = @mongo[@collection]
-    raise "Collection must be capped to connect to it" unless @coll.capped?
+    @mongo = Mongo::Client.new(@server, logger: mongo_logger)
 
-    @view = @coll.find(@parsed_filter, sort: [["$natural", 1]], cursor_type: :tailable)
-    @cursor = Mongo::TailableCursor.new(@view)
+    # bootstrap connections to all the collections
+    @collections.map! do |collection_string|
+      collection, database = collection_string.split("/",2).reverse
+      database ||= @mongo.database.name
+      [database, collection]
+    end
+
+    raise LogStash::ConfigurationError, "must have at least one collection" if @collections.empty?
   end
 
   def run(queue)
-    @cursor.start
+    @collections.map do |database, collection|
+      Thread.new(queue, database, collection) do |queue, database, collection|
+        @logger.info("MongoDB tailable thread starting", database: database, collection: collection)
+        subscribe(queue, database, collection)
+      end
+    end.each do |thread|
+      thread.join
+    end
+  end
+
+  def rebuild_connection(database, collection)
+    coll = @mongo.use(database)[collection]
+    raise "Collection must be capped to connect to it" unless coll.capped?
+    view = coll.find({}, sort: [["$natural", 1]], cursor_type: :tailable)
+    return Mongo::TailableCursor.new(view)
+  rescue Mongo::Error::OperationFailure => e
+    return nil unless @raise_on_missing
+    raise e
+  end
+
+  def subscribe(queue, database, collection)
+    cursor = rebuild_connection(database, collection)
+    return unless cursor
+    cursor.start
 
     # we can abort the loop if stop? becomes true
     while !stop?
       begin
-        message = @cursor.next
+        message = cursor.next
       rescue StopIteration
-        @logger.info("MongoDB tailable cursor broken", uri: @uri, collection: @collection)
-        rebuild_connection
+        @logger.info("MongoDB tailable cursor broken", uri: @server, database: database, collection: collection)
+        cursor = rebuild_connection(database, collection)
+        return unless cursor
+        cursor.start
       else
         if message
           message = convert_bson_hash_to_raw(message)
-          event = LogStash::Event.new("message" => message, "database" => @mongo.database.name, "collection" => @collection)
+          event = LogStash::Event.new("message" => message, "database" => database, "collection" => collection)
           decorate(event)
           queue << event
         else
@@ -81,14 +101,9 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
       when Hash
         result[key] = convert_bson_hash_to_raw(value)
       else
-        result[key] = value
+        result[key] = value.to_s
       end
     end
     return result
-  end
-
-  def stop
-    @cursor.close
-    @mongo.close
   end
 end
