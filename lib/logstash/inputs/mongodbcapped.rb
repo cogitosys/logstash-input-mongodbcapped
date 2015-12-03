@@ -84,8 +84,14 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
         cursor.start
       else
         if message
+          message_size = message.to_bson.bytesize # inefficient, but we don't get the raw message size from mongo's API client
           message = convert_bson_hash_to_raw(message)
-          event = LogStash::Event.new("message" => message, "database" => database, "collection" => collection)
+          event = LogStash::Event.new(
+            "message" => message,
+            "database" => database,
+            "collection" => collection,
+            "message_size" => message_size.to_s
+          )
           decorate(event)
           queue << event
         else
