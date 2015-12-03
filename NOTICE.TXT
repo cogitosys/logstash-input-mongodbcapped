@@ -1,4 +1,5 @@
-Elasticsearch
+Steven Karas
+Copyright 2015 Steven Karas
 Copyright 2012-2015 Elasticsearch
 
 This product includes software developed by The Apache Software

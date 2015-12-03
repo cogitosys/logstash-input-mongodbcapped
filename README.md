@@ -1,11 +1,19 @@
-# Logstash Plugin
+# Logstash Mongodb Capped Collection Input Plugin
 
-[![Build
-Status](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-example-unit/badge/icon)](http://build-eu-00.elastic.co/view/LS%20Plugins/view/LS%20Inputs/job/logstash-plugin-input-example-unit/)
-
-This is a plugin for [Logstash](https://github.com/elastic/logstash).
+This is an input plugin for [Logstash](https://github.com/elastic/logstash) to read from a mongodb capped collection.
 
 It is fully free and fully open source. The license is Apache 2.0, meaning you are pretty much free to use it however you want in whatever way.
+
+## Example Usage
+
+```
+input {
+    mongodbcapped {
+        uri => 'mongodb://localhost/somedb?ssl=true'
+        collection => 'my_capped_colleciton'
+    }
+}
+```
 
 ## Documentation
 
@@ -20,63 +28,13 @@ Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/log
 
 ## Developing
 
-### 1. Plugin Developement and Testing
+### 1. Local development
 
-#### Code
-- To get started, you'll need JRuby with the Bundler gem installed.
+You'll need JRuby installed with Bundler. `bundle install` and `bundle exec rspec` to get started.
 
-- Create a new plugin or clone and existing from the GitHub [logstash-plugins](https://github.com/logstash-plugins) organization. We also provide [example plugins](https://github.com/logstash-plugins?query=example).
+#### 1.1 Running in Logstash
 
-- Install dependencies
-```sh
-bundle install
-```
-
-#### Test
-
-- Update your dependencies
-
-```sh
-bundle install
-```
-
-- Run tests
-
-```sh
-bundle exec rspec
-```
-
-### 2. Running your unpublished Plugin in Logstash
-
-#### 2.1 Run in a local Logstash clone
-
-- Edit Logstash `Gemfile` and add the local plugin path, for example:
-```ruby
-gem "logstash-filter-awesome", :path => "/your/local/logstash-filter-awesome"
-```
-- Install plugin
-```sh
-bin/plugin install --no-verify
-```
-- Run Logstash with your plugin
-```sh
-bin/logstash -e 'filter {awesome {}}'
-```
-At this point any modifications to the plugin code will be applied to this local Logstash setup. After modifying the plugin, simply rerun Logstash.
-
-#### 2.2 Run in an installed Logstash
-
-You can use the same **2.1** method to run your plugin in an installed Logstash by editing its `Gemfile` and pointing the `:path` to your local plugin development directory or you can build the gem and install it using:
-
-- Build your plugin gem
-```sh
-gem build logstash-filter-awesome.gemspec
-```
-- Install the plugin from the Logstash home
-```sh
-bin/plugin install /your/local/plugin/logstash-filter-awesome.gem
-```
-- Start Logstash and proceed to test the plugin
+Either add the gem by path to the Gemfile, and `bin/plugin install --no-verify`, or build the gem and install with `bin/plugin install /path/to/logstash-input-mongodbcapped.gem`
 
 ## Contributing
 

@@ -1,2 +1,3 @@
-# logstash-input-example
-Example input plugin. This should help bootstrap your effort to write your own input plugin!
+# logstash-input-mongodbcapped
+
+Not really sure why we need this file, but I'm cargoculting it in from the logstash plugin example
