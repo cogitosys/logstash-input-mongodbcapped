@@ -58,7 +58,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   def rebuild_connection(database, collection)
     coll = @mongo.use(database)[collection]
     raise "Collection must be capped to connect to it" unless coll.capped?
-    view = coll.find({}, sort: [["$natural", 1]], cursor_type: :tailable)
+    view = coll.find({}, cursor_type: :tailable).sort("$natural" => 1)
     return Mongo::TailableCursor.new(view)
   rescue Mongo::Error::OperationFailure => e
     return nil unless @raise_on_missing
