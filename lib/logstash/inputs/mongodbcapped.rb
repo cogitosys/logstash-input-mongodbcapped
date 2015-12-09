@@ -32,7 +32,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     # I'd hook it up to Cabin, but Cabin doesn't support the proper api (block-style)
     mongo_logger = Logger.new($stdout)
     mongo_logger.level = Logger::WARN
-    @mongo = Mongo::Client.new(@server, logger: mongo_logger)
+    @mongo = Mongo::Client.new(@server, logger: mongo_logger, max_pool_size: @collections.size)
 
     # bootstrap connections to all the collections
     @collections.map! do |collection_string|
