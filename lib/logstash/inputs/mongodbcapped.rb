@@ -90,7 +90,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
             "message" => message,
             "database" => database,
             "collection" => collection,
-            "message_size" => message_size.to_s
+            "message_size" => message_size
           )
           decorate(event)
           queue << event
