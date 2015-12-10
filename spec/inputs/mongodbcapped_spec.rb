@@ -11,7 +11,7 @@ describe LogStash::Inputs::MongoDBCapped do
   }}
   let(:single_collection_config) {{
     "server" => "mongodb://localhost/mydb",
-    "collections" => ["capped"],
+    "collections" => "capped",
   }}
   let(:multi_collection_config) {{
     "server" => "mongodb://localhost",

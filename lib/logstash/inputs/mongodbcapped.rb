@@ -9,13 +9,14 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   # If undefined, Logstash will complain, even if codec is unused.
   default :codec, "plain"
 
-  # The mongo server to connect to (as a mongodb connection string)
+  # The mongo server to connect to (as a mongodb connection string). The database and collection are optional
   config :server, validate: :string, required: false
 
-  # The collections to tail
+  # The collection(s) to tail
   #
-  # To specify collections in different databases, write them in the form "database/collection"
-  config :collections, validate: :array, required: true
+  # Collections are specified in the notation "[database/]collection", for example "mydb/capped1" or "capped2".
+  # Note that the second form is only allowed if a database is specified in the server param
+  config :collections, required: true
 
   # How long to sleep if the cursor gives us no results, to reduce server load
   config :interval, validate: :number, default: 0.5
@@ -35,6 +36,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     @mongo = Mongo::Client.new(@server, logger: mongo_logger, max_pool_size: @collections.size)
 
     # bootstrap connections to all the collections
+    @collections = [*@collections] # treat the connections as an array. Always
     @collections.map! do |collection_string|
       collection, database = collection_string.split("/",2).reverse
       database ||= @mongo.database.name

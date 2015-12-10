@@ -32,7 +32,7 @@ Here's my shortlist of things I'd like to add eventually:
 
 - [ ] polling input -> useful for scraping systemStats(), db.stats(), etc
 - [ ] start_from support -> to skip over existing messages in a capped collection
-- [ ] collection as a string or an array in config
+- [x] collection as a string or an array in config
 - [ ] wildcard support for collections
 - [ ] proper error recovery, retry timing and backoff (needs input from elastic team about philosophy)
 
