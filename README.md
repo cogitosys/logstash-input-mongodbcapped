@@ -34,7 +34,7 @@ Here's my shortlist of things I'd like to add eventually:
 - [ ] start_from support -> to skip over existing messages in a capped collection
 - [x] collection as a string or an array in config
 - [ ] wildcard support for collections
-- [ ] proper error recovery, retry timing and backoff (needs input from elastic team about philosophy)
+- [x] proper error recovery, retry timing and backoff (needs input from elastic team about philosophy)
 
 ## Need Help?
 

@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'logstash-input-mongodbcapped'
-  s.version = '0.3.3'
+  s.version = '0.4.0'
   s.licenses = ['Apache License (2.0)']
   s.summary = "This logstash input plugin streams events from mongodb."
   s.description = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install logstash-input-mongodbcapped. This gem is not a stand-alone program"
