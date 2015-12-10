@@ -47,6 +47,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   end
 
   def run(queue)
+    # track each collection with a thread
     @collections.map do |database, collection|
       Thread.new(queue, database, collection) do |queue, database, collection|
         @logger.info("MongoDB tailable thread starting", database: database, collection: collection)
@@ -59,7 +60,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
 
   def rebuild_connection(database, collection)
     coll = @mongo.use(database)[collection]
-    raise "Collection must be capped to connect to it" unless coll.capped?
+    raise "Collection must be capped to tail it" unless coll.capped?
     view = coll.find({}, cursor_type: :tailable).sort("$natural" => 1)
     return Mongo::TailableCursor.new(view)
   rescue Mongo::Error::OperationFailure => e
@@ -72,7 +73,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     return unless cursor
     cursor.start
 
-    # we can abort the loop if stop? becomes true
+    # subscribe until we're stopped (or the connection craps out)
     while !stop?
       begin
         message = cursor.next
@@ -87,7 +88,7 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
       else
         if message
           message_size = message.to_bson.bytesize # inefficient, but we don't get the raw message size from mongo's API client
-          message = convert_bson_hash_to_raw(message)
+          message = bson_doc_to_hash(message)
           event = LogStash::Event.new(
             "message" => message,
             "database" => database,
@@ -103,14 +104,15 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     end
   end
 
-  def convert_bson_hash_to_raw(hash)
+  # needed because BSON::Document doesn't have a recursive "as_json" method
+  def bson_doc_to_hash(bson_doc)
     result = {}
-    hash.each do |key, value|
+    bson_doc.each do |key, value|
       case value
       when BSON::Binary, BSON::Code, BSON::CodeWithScope, BSON::MaxKey, BSON::MinKey, BSON::ObjectId, BSON::Timestamp, Regexp
         result[key] = value.as_json
       when Hash
-        result[key] = convert_bson_hash_to_raw(value)
+        result[key] = bson_doc_to_hash(value)
       else
         result[key] = value.to_s
       end
