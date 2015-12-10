@@ -21,6 +21,11 @@ describe LogStash::Inputs::MongoDBCapped do
     "server" => "mongodb://localhost/mydb",
     "collections" => ["foo","bar/baz"],
   }}
+  let(:fictional_server_config) {{
+    "server" => "mongodb://somefictionalserver",
+    "collections" => "mydb/capped",
+    "on_server_unavailable" => "raise",
+  }}
 
   it_behaves_like "an interruptible input plugin" do
     # NOTE: this will fail unless you've created a capped collection called "capped" in the localhosts' "mydb" mongo db database
@@ -53,6 +58,12 @@ describe LogStash::Inputs::MongoDBCapped do
     input = LogStash::Plugin.lookup("input", "mongodbcapped").new(override_database_config)
     input.register
     expect(input.instance_variable_get(:@collections)).to eq [["mydb", "foo"], ["bar", "baz"]]
+  end
+
+  it "should raise if the server is unavailable" do
+    input = LogStash::Plugin.lookup("input", "mongodbcapped").new(fictional_server_config)
+    input.register
+    expect { input.run(Queue.new) }.to raise_error
   end
 
 end

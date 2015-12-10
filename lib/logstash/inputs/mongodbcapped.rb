@@ -24,6 +24,9 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   # Preferred behavior if a specified collection is missing
   config :on_missing, validate: ["raise", "retry", "ignore"], default: "raise"
 
+  # Preferred behavior if the server is unavailable
+  config :on_server_unavailable, validate: ["raise", "retry"], default: "raise"
+
   def register
     require "json"
     require "uri"
@@ -59,11 +62,16 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   end
 
   def thread_run(queue, database, collection)
+    server_missing = 0
     collection_missing = 0
     while !stop?
       begin
         cursor = rebuild_connection(database, collection)
         cursor.start
+        if server_missing > 0
+          @logger.info("MongoDB server #{@server} now available")
+          server_missing = 0
+        end
         if collection_missing > 0
           @logger.info("MongoDB collection #{database}/#{collection} now available")
           collection_missing = 0
@@ -73,6 +81,8 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
         retry if e.retryable? # given that these are fully recoverable errors, don't fail
         collection_missing = handle_error(e, @on_missing, collection_missing, "MongoDB collection #{database}/#{collection} missing")
         return if collection_missing == 0
+      rescue Mongo::Error::NoServerAvailable => e
+        server_missing = handle_error(e, @on_server_unavailable, server_missing, "MongoDB server #{@server} unavailable")
       end
     end
   end
