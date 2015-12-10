@@ -21,8 +21,8 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
   # How long to sleep if the cursor gives us no results, to reduce server load
   config :interval, validate: :number, default: 0.5
 
-  # Whether or not to consider a missing collection a fatal error
-  config :raise_on_missing, validate: :boolean, default: true
+  # Preferred behavior if a specified collection is missing
+  config :on_missing, validate: ["raise", "retry", "ignore"], default: "raise"
 
   def register
     require "json"
@@ -51,11 +51,44 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     @collections.map do |database, collection|
       Thread.new(queue, database, collection) do |queue, database, collection|
         @logger.info("MongoDB tailable thread starting", database: database, collection: collection)
-        subscribe(queue, database, collection)
+        thread_run(queue, database, collection)
       end
     end.each do |thread|
       thread.join
     end
+  end
+
+  def thread_run(queue, database, collection)
+    collection_missing = 0
+    while !stop?
+      begin
+        cursor = rebuild_connection(database, collection)
+        cursor.start
+        if collection_missing > 0
+          @logger.info("MongoDB collection #{database}/#{collection} now available")
+          collection_missing = 0
+        end
+        subscribe(queue, cursor, database, collection)
+      rescue Mongo::Error::OperationFailure => e
+        retry if e.retryable? # given that these are fully recoverable errors, don't fail
+        collection_missing = handle_error(e, @on_missing, collection_missing, "MongoDB collection #{database}/#{collection} missing")
+        return if collection_missing == 0
+      end
+    end
+  end
+
+  def handle_error(error, policy, counter, message)
+    case policy
+    when "raise"
+      raise error
+    when "retry"
+      @logger.info("#{message}. Exponential backoff starting from #{@interval}") if counter == 0
+      counter += 1
+      Stud.stoppable_sleep(@interval * (1.5 ** counter)) { stop? }
+    when "ignore"
+      counter = 0
+    end
+    return counter
   end
 
   def rebuild_connection(database, collection)
@@ -63,28 +96,20 @@ class LogStash::Inputs::MongoDBCapped < LogStash::Inputs::Base
     raise "Collection must be capped to tail it" unless coll.capped?
     view = coll.find({}, cursor_type: :tailable).sort("$natural" => 1)
     return Mongo::TailableCursor.new(view)
-  rescue Mongo::Error::OperationFailure => e
-    return nil unless @raise_on_missing
-    raise e
   end
 
-  def subscribe(queue, database, collection)
-    cursor = rebuild_connection(database, collection)
-    return unless cursor
-    cursor.start
-
+  def subscribe(queue, cursor, database, collection)
     # subscribe until we're stopped (or the connection craps out)
     while !stop?
       begin
         message = cursor.next
       rescue Mongo::Error::OperationFailure => e
         # this can happen if a query wasn't successful
-        retry
+        retry if e.retryable?
+        raise e
       rescue StopIteration
         @logger.info("MongoDB tailable cursor broken", uri: @server, database: database, collection: collection)
-        cursor = rebuild_connection(database, collection)
-        return unless cursor
-        cursor.start
+        raise Mongo::Error::OperationFailure, "unknown transport error" # magic string that marks it as retryable
       else
         if message
           message_size = message.to_bson.bytesize # inefficient, but we don't get the raw message size from mongo's API client
